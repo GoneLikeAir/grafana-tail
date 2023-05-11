@@ -278,7 +278,12 @@ func (tail *Tail) reopen(truncated bool) error {
 
 func (tail *Tail) readLine() (string, error) {
 	tail.lk.Lock()
-	line, err := tail.reader.ReadString('\n')
+	//line, err := tail.reader.ReadString('\n')
+	line := ""
+	lineBytes, err := tail.reader.ReadSlice('\n')
+	if len(lineBytes) > 0 {
+		line = string(lineBytes)
+	}
 	tail.lk.Unlock()
 	if err != nil {
 		// Note ReadString "returns the data read before the error" in
