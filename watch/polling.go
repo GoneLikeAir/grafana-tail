@@ -9,7 +9,7 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/grafana/tail/util"
+	"github.com/hpcloud/tail/util"
 	"gopkg.in/tomb.v1"
 )
 

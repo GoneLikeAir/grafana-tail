@@ -1,4 +1,4 @@
-module github.com/grafana/tail
+module github.com/hpcloud/tail
 
 go 1.13
 

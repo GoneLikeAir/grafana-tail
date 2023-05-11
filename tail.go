@@ -15,9 +15,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/grafana/tail/ratelimiter"
-	"github.com/grafana/tail/util"
-	"github.com/grafana/tail/watch"
+	"github.com/hpcloud/tail/ratelimiter"
+	"github.com/hpcloud/tail/util"
+	"github.com/hpcloud/tail/watch"
 	"gopkg.in/tomb.v1"
 )
 

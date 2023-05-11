@@ -1,9 +1,10 @@
+//go:build windows
 // +build windows
 
 package tail
 
 import (
-	"github.com/grafana/tail/winfile"
+	"github.com/hpcloud/tail/winfile"
 	"os"
 )
 

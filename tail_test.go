@@ -14,8 +14,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/grafana/tail/ratelimiter"
-	"github.com/grafana/tail/watch"
+	"github.com/hpcloud/tail/ratelimiter"
+	"github.com/hpcloud/tail/watch"
 )
 
 var testPollingOptions = watch.PollingFileWatcherOptions{
