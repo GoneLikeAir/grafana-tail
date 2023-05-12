@@ -285,7 +285,7 @@ func (tail *Tail) readLine() (string, error) {
 		line = string(lineBytes)
 	}
 	tail.lk.Unlock()
-	if err != nil {
+	if err != nil && err != bufio.ErrBufferFull {
 		// Note ReadString "returns the data read before the error" in
 		// case of an error, including EOF, so we return it as is. The
 		// caller is expected to process it if err is EOF.
@@ -294,7 +294,7 @@ func (tail *Tail) readLine() (string, error) {
 
 	line = strings.TrimRight(line, "\n")
 
-	return line, err
+	return line, nil
 }
 
 func (tail *Tail) tailFileSync() {
