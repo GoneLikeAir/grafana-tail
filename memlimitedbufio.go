@@ -38,7 +38,6 @@ type Reader struct {
 	err            error
 	lastByte       int // last byte read for UnreadByte; -1 means invalid
 	lastRuneSize   int // size of last rune read for UnreadRune; -1 means invalid
-	requestFunc    func(n int) (returnFunc func())
 	memPool        Pool
 	totalRequested int64
 }
@@ -82,11 +81,13 @@ func (b *Reader) Reset(r io.Reader) {
 }
 
 func (b *Reader) reset(buf []byte, r io.Reader) {
+	pool := b.memPool
 	*b = Reader{
 		buf:          buf,
 		rd:           r,
 		lastByte:     -1,
 		lastRuneSize: -1,
+		memPool:      pool,
 	}
 }
 
@@ -117,6 +118,10 @@ func (b *Reader) fill() {
 			return
 		}
 		if n > 0 {
+			if b.memPool != nil {
+				b.memPool.Request(int64(n))
+				atomic.AddInt64(&b.totalRequested, int64(n))
+			}
 			return
 		}
 	}

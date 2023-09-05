@@ -7,6 +7,7 @@
 package tail
 
 import (
+	"fmt"
 	_ "fmt"
 	"io/ioutil"
 	"os"
@@ -304,6 +305,26 @@ func TestMemLimiting(t *testing.T) {
 
 	tailTest.Cleanup(tail, true)
 	tailTest2.Cleanup(tail2, true)
+}
+
+func TestContinuingTailing(t *testing.T) {
+	pool := NewMemoryPool(1000)
+	config := Config{
+		Follow:      true,
+		RateLimiter: ratelimiter.NewLeakyBucket(2, time.Second),
+		MemPool:     pool,
+	}
+	tail, _ := TailFile("/Users/gone/work/code/grafana-tail/text.txt", config)
+	fmt.Printf("%v\n", tail)
+
+	go func() {
+		for {
+			l := <-tail.Lines
+			fmt.Println(l.Text)
+		}
+	}()
+
+	time.Sleep(time.Hour)
 }
 
 func TestTell(t *testing.T) {
