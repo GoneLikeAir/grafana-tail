@@ -4,7 +4,6 @@
 package tail
 
 import (
-	"bufio"
 	"errors"
 	"fmt"
 	"io"
@@ -71,7 +70,8 @@ type Config struct {
 
 	// Logger, when nil, is set to tail.DefaultLogger
 	// To disable logging: set field to tail.DiscardingLogger
-	Logger logger
+	Logger  logger
+	MemPool Pool
 }
 
 type Tail struct {
@@ -80,7 +80,7 @@ type Tail struct {
 	Config
 
 	file   *os.File
-	reader *bufio.Reader
+	reader *Reader
 
 	watcher watch.FileWatcher
 	changes *watch.FileChanges
@@ -285,7 +285,7 @@ func (tail *Tail) readLine() (string, error) {
 		line = string(lineBytes)
 	}
 	tail.lk.Unlock()
-	if err != nil && err != bufio.ErrBufferFull {
+	if err != nil && err != ErrBufferFull {
 		// Note ReadString "returns the data read before the error" in
 		// case of an error, including EOF, so we return it as is. The
 		// caller is expected to process it if err is EOF.
@@ -477,9 +477,12 @@ func (tail *Tail) finishDelete() error {
 func (tail *Tail) openReader() {
 	if tail.MaxLineSize > 0 {
 		// add 2 to account for newline characters
-		tail.reader = bufio.NewReaderSize(tail.file, tail.MaxLineSize+2)
+		tail.reader = NewReaderSize(tail.file, tail.MaxLineSize+2)
 	} else {
-		tail.reader = bufio.NewReader(tail.file)
+		tail.reader = NewReader(tail.file)
+	}
+	if tail.Config.MemPool != nil {
+		tail.reader.SetMemLimitPool(tail.Config.MemPool)
 	}
 }
 
