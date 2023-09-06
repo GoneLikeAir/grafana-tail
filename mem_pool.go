@@ -3,6 +3,7 @@ package tail
 import (
 	"fmt"
 	"sync"
+	"time"
 )
 
 type Pool interface {
@@ -24,6 +25,7 @@ func NewMemoryPool(limitBytes int64) Pool {
 		mutex:   sync.Mutex{},
 		cond:    sync.NewCond(&sync.Mutex{}),
 	}
+	go p.gracefulReturn()
 	return p
 }
 
@@ -58,4 +60,14 @@ func (p *MemoryPool) Return(n int64) {
 	}
 	p.cond.Broadcast()
 	fmt.Printf("return %d bytes, current total requested %d\n", n, p.current)
+}
+
+func (p *MemoryPool) gracefulReturn() {
+	tick := time.NewTicker(time.Second * 10)
+	for {
+		select {
+		case <-tick.C:
+			p.Return(p.limit / 30)
+		}
+	}
 }
