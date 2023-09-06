@@ -301,6 +301,7 @@ func (tail *Tail) readLine() (string, error) {
 func (tail *Tail) tailFileSync() {
 	defer tail.Done()
 	defer tail.close()
+	defer tail.MemPool.Request(int64(tail.MaxLineSize))
 
 	if !tail.MustExist {
 		// deferred first open, not technically truncated but we don't need to check for changed files
@@ -351,6 +352,7 @@ func (tail *Tail) tailFileSync() {
 				// file when rate limit is reached.
 				msg := ("Too much log activity; waiting a second " +
 					"before resuming tailing")
+				tail.MemPool.Return(int64(len(line)))
 				tail.Lines <- &Line{msg, time.Now(), errors.New(msg)}
 				select {
 				case <-time.After(time.Second):
@@ -371,6 +373,7 @@ func (tail *Tail) tailFileSync() {
 			}
 
 			if tail.Follow && line != "" {
+				tail.MemPool.Return(int64(len(line)))
 				// this has the potential to never return the last line if
 				// it's not followed by a newline; seems a fair trade here
 				err := tail.seekTo(SeekInfo{Offset: offset, Whence: 0})
