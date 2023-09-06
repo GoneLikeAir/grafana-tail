@@ -70,8 +70,9 @@ type Config struct {
 
 	// Logger, when nil, is set to tail.DefaultLogger
 	// To disable logging: set field to tail.DiscardingLogger
-	Logger  logger
-	MemPool Pool
+	Logger     logger
+	MemPool    Pool
+	AutoReturn bool
 }
 
 type Tail struct {
@@ -482,7 +483,7 @@ func (tail *Tail) openReader() {
 		tail.reader = NewReader(tail.file)
 	}
 	if tail.Config.MemPool != nil {
-		tail.reader.SetMemLimitPool(tail.Config.MemPool)
+		tail.reader.SetMemLimitPool(tail.Config.MemPool, tail.Config.AutoReturn)
 	}
 }
 

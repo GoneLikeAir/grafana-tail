@@ -40,6 +40,7 @@ type Reader struct {
 	lastRuneSize   int // size of last rune read for UnreadRune; -1 means invalid
 	memPool        Pool
 	totalRequested int64
+	autoReturn     bool
 }
 
 const minReadBufferSize = 16
@@ -67,8 +68,9 @@ func NewReader(rd io.Reader) *Reader {
 	return NewReaderSize(rd, defaultBufSize)
 }
 
-func (b *Reader) SetMemLimitPool(pool Pool) {
+func (b *Reader) SetMemLimitPool(pool Pool, autoReturn bool) {
 	b.memPool = pool
+	b.autoReturn = autoReturn
 }
 
 // Size returns the size of the underlying buffer in bytes.
@@ -82,12 +84,14 @@ func (b *Reader) Reset(r io.Reader) {
 
 func (b *Reader) reset(buf []byte, r io.Reader) {
 	pool := b.memPool
+	autoReturn := b.autoReturn
 	*b = Reader{
 		buf:          buf,
 		rd:           r,
 		lastByte:     -1,
 		lastRuneSize: -1,
 		memPool:      pool,
+		autoReturn:   autoReturn,
 	}
 }
 
@@ -343,7 +347,7 @@ func (b *Reader) Buffered() int { return b.w - b.r }
 // ReadBytes or ReadString instead.
 // ReadSlice returns err != nil if and only if line does not end in delim.
 func (b *Reader) ReadSlice(delim byte) (line []byte, err error) {
-	if b.memPool != nil {
+	if b.memPool != nil && b.autoReturn {
 		defer func() {
 			b.memPool.Return(b.totalRequested)
 			atomic.AddInt64(&b.totalRequested, -b.totalRequested)
@@ -425,7 +429,7 @@ func (b *Reader) readSlice(delim byte) (line []byte, err error) {
 // (possibly a character belonging to the line end) even if that byte is not
 // part of the line returned by ReadLine.
 func (b *Reader) ReadLine() (line []byte, isPrefix bool, err error) {
-	if b.memPool != nil {
+	if b.memPool != nil && b.autoReturn {
 		defer func() {
 			b.memPool.Return(b.totalRequested)
 			atomic.AddInt64(&b.totalRequested, -b.totalRequested)
