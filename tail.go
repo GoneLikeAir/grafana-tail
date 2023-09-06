@@ -332,7 +332,6 @@ func (tail *Tail) tailFileSync() {
 
 	// Read line by line.
 	for {
-		// do not seek in named pipes
 		if !tail.Pipe {
 			// grab the position in case we need to back up in the event of a half-line
 			offset, err = tail.Tell()
@@ -341,86 +340,93 @@ func (tail *Tail) tailFileSync() {
 				return
 			}
 		}
+		f := func() bool {
+			// do not seek in named pipes
+			line, err := tail.readLine()
+			defer tail.MemPool.Return(int64(len(line) + 1))
 
-		line, err := tail.readLine()
+			// Process `line` even if err is EOF.
+			if err == nil {
+				cooloff := !tail.sendLine(line)
+				if cooloff {
+					// Wait a second before seeking till the end of
+					// file when rate limit is reached.
+					msg := ("Too much log activity; waiting a second " +
+						"before resuming tailing")
+					tail.Lines <- &Line{msg, time.Now(), errors.New(msg)}
+					select {
+					case <-time.After(time.Second):
+					case <-tail.Dying():
+						return false
+					}
+					if err := tail.seekEnd(); err != nil {
+						tail.Kill(err)
+						return false
+					}
+				}
+			} else if err == io.EOF {
+				if !tail.Follow {
+					if line != "" {
+						tail.sendLine(line)
+					}
+					return false
+				}
 
-		// Process `line` even if err is EOF.
-		if err == nil {
-			cooloff := !tail.sendLine(line)
-			if cooloff {
-				// Wait a second before seeking till the end of
-				// file when rate limit is reached.
-				msg := ("Too much log activity; waiting a second " +
-					"before resuming tailing")
-				tail.MemPool.Return(int64(len(line)))
-				tail.Lines <- &Line{msg, time.Now(), errors.New(msg)}
-				select {
-				case <-time.After(time.Second):
-				case <-tail.Dying():
-					return
+				if tail.Follow && line != "" {
+					// this has the potential to never return the last line if
+					// it's not followed by a newline; seems a fair trade here
+					err := tail.seekTo(SeekInfo{Offset: offset, Whence: 0})
+					if err != nil {
+						tail.Kill(err)
+						return false
+					}
 				}
-				if err := tail.seekEnd(); err != nil {
-					tail.Kill(err)
-					return
-				}
-			}
-		} else if err == io.EOF {
-			if !tail.Follow {
-				if line != "" {
-					tail.sendLine(line)
-				}
-				return
-			}
 
-			if tail.Follow && line != "" {
-				tail.MemPool.Return(int64(len(line)))
-				// this has the potential to never return the last line if
-				// it's not followed by a newline; seems a fair trade here
-				err := tail.seekTo(SeekInfo{Offset: offset, Whence: 0})
-				if err != nil {
-					tail.Kill(err)
-					return
+				// oneMoreRun is set true when a file is deleted,
+				// this is to catch events which might get missed in polling mode.
+				// now that the last run is completed, finish deleting the file
+				if oneMoreRun {
+					oneMoreRun = false
+					err = tail.finishDelete()
+					if err != nil {
+						if err != ErrStop {
+							tail.Kill(err)
+						}
+						return false
+					}
 				}
-			}
 
-			// oneMoreRun is set true when a file is deleted,
-			// this is to catch events which might get missed in polling mode.
-			// now that the last run is completed, finish deleting the file
-			if oneMoreRun {
-				oneMoreRun = false
-				err = tail.finishDelete()
+				// When EOF is reached, wait for more data to become
+				// available. Wait strategy is based on the `tail.watcher`
+				// implementation (inotify or polling).
+				oneMoreRun, err = tail.waitForChanges()
 				if err != nil {
 					if err != ErrStop {
 						tail.Kill(err)
 					}
-					return
+					return false
 				}
+			} else {
+				// non-EOF error
+				tail.Killf("Error reading %s: %s", tail.Filename, err)
+				return false
 			}
 
-			// When EOF is reached, wait for more data to become
-			// available. Wait strategy is based on the `tail.watcher`
-			// implementation (inotify or polling).
-			oneMoreRun, err = tail.waitForChanges()
-			if err != nil {
-				if err != ErrStop {
-					tail.Kill(err)
+			select {
+			case <-tail.Dying():
+				if tail.Err() == errStopAtEOF {
+					return true
 				}
-				return
+				return false
+			default:
 			}
-		} else {
-			// non-EOF error
-			tail.Killf("Error reading %s: %s", tail.Filename, err)
+			return true
+		}
+
+		if neeContinue := f(); !neeContinue {
 			return
 		}
 
-		select {
-		case <-tail.Dying():
-			if tail.Err() == errStopAtEOF {
-				continue
-			}
-			return
-		default:
-		}
 	}
 }
 
