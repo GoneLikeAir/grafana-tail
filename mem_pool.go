@@ -63,11 +63,11 @@ func (p *MemoryPool) Return(n int64) {
 }
 
 func (p *MemoryPool) gracefulReturn() {
-	tick := time.NewTicker(time.Second * 10)
+	tick := time.NewTicker(time.Second * 1)
 	for {
 		select {
 		case <-tick.C:
-			p.Return(p.limit / 30)
+			p.Return(p.limit / 5 / 60)
 		}
 	}
 }

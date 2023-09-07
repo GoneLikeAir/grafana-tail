@@ -301,7 +301,7 @@ func (tail *Tail) readLine() (string, error) {
 func (tail *Tail) tailFileSync() {
 	defer tail.Done()
 	defer tail.close()
-	defer tail.MemPool.Request(int64(tail.MaxLineSize))
+	defer tail.MemPool.Return(int64(tail.MaxLineSize))
 
 	if !tail.MustExist {
 		// deferred first open, not technically truncated but we don't need to check for changed files
