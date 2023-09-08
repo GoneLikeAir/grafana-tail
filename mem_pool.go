@@ -63,6 +63,7 @@ func (p *MemoryPool) Return(n int64) {
 
 func (p *MemoryPool) gracefulReturn() {
 	tick := time.NewTicker(time.Second * 1)
+	i := 0
 	for {
 		select {
 		case <-tick.C:
@@ -72,9 +73,15 @@ func (p *MemoryPool) gracefulReturn() {
 				needReturn = true
 			}
 			p.mutex.Unlock()
+
+			if i%600 == 0 {
+				i = 0
+				needReturn = true
+			}
 			if needReturn {
 				p.Return(p.limit / 5 / 60)
 			}
 		}
+		i++
 	}
 }

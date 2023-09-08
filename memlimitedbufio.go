@@ -112,18 +112,27 @@ func (b *Reader) fill() {
 
 	// Read new data: try a limited number of times.
 	for i := maxConsecutiveEmptyReads; i > 0; i-- {
+		if b.memPool != nil {
+			b.memPool.Request(int64(cap(b.buf)))
+		}
 		n, err := b.rd.Read(b.buf[b.w:])
 		if n < 0 {
+			if b.memPool != nil {
+				b.memPool.Return(int64(cap(b.buf)))
+			}
 			panic(errNegativeRead)
 		}
 		b.w += n
 		if err != nil {
 			b.err = err
+			if b.memPool != nil {
+				b.memPool.Return(int64(cap(b.buf)))
+			}
 			return
 		}
 		if n > 0 {
 			if b.memPool != nil {
-				b.memPool.Request(int64(n))
+				b.memPool.Return(int64(cap(b.buf) - n))
 				atomic.AddInt64(&b.totalRequested, int64(n))
 			}
 			return
