@@ -482,9 +482,10 @@ func reSeek(t *testing.T, poll bool) {
 	}
 	tailTest := NewTailTest(name, t)
 	tailTest.CreateFile("test.txt", "a really long string goes here\nhello\nworld\n")
+	pool := NewMemoryPool(1000)
 	tail := tailTest.StartTail(
 		"test.txt",
-		Config{Follow: true, ReOpen: false, Poll: poll, PollOptions: testPollingOptions})
+		Config{Follow: true, ReOpen: false, MemPool: pool, AutoReturn: false, Poll: poll, PollOptions: testPollingOptions})
 
 	go tailTest.VerifyTailOutput(tail, []string{
 		"a really long string goes here", "hello", "world", "h311o", "w0r1d", "endofworld"}, false)

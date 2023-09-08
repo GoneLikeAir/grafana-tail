@@ -423,7 +423,7 @@ func (tail *Tail) tailFileSync() {
 			return true
 		}
 
-		if neeContinue := f(); !neeContinue {
+		if needContinue := f(); !needContinue {
 			return
 		}
 
@@ -541,5 +541,6 @@ func (tail *Tail) sendLine(line string) bool {
 // meant to be invoked from a process's exit handler. Linux kernel may not
 // automatically remove inotify watches after the process exits.
 func (tail *Tail) Cleanup() {
+	tail.MemPool.Return(int64(tail.MaxLineSize))
 	watch.Cleanup(tail.Filename)
 }

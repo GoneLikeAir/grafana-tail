@@ -362,11 +362,11 @@ func (b *Reader) readSlice(delim byte) (line []byte, err error) {
 		// Search buffer.
 		if i := bytes.IndexByte(b.buf[b.r+s:b.w], delim); i >= 0 {
 			i += s
-			if b.memPool != nil {
-				n := int64(len(b.buf[b.r : b.r+i+1]))
-				b.memPool.Request(n)
-				atomic.AddInt64(&b.totalRequested, n)
-			}
+			//if b.memPool != nil {
+			//	n := int64(len(b.buf[b.r : b.r+i+1]))
+			//	b.memPool.Request(n)
+			//	atomic.AddInt64(&b.totalRequested, n)
+			//}
 			line = b.buf[b.r : b.r+i+1]
 			b.r += i + 1
 			break

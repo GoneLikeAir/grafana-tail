@@ -67,7 +67,15 @@ func (p *MemoryPool) gracefulReturn() {
 	for {
 		select {
 		case <-tick.C:
-			p.Return(p.limit / 5 / 60)
+			needReturn := false
+			p.mutex.Lock()
+			if float64(p.current)/float64(p.limit) > 0.8 {
+				needReturn = true
+			}
+			p.mutex.Unlock()
+			if needReturn {
+				p.Return(p.limit / 5 / 60)
+			}
 		}
 	}
 }
