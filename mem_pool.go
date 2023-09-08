@@ -74,7 +74,7 @@ func (p *MemoryPool) gracefulReturn() {
 			}
 			p.mutex.Unlock()
 
-			if i%600 == 0 {
+			if i%300 == 0 {
 				i = 0
 				needReturn = true
 			}
