@@ -1,6 +1,7 @@
 package tail
 
 import (
+	"fmt"
 	"sync"
 	"time"
 )
@@ -42,7 +43,7 @@ func (p *MemoryPool) Request(n int64) {
 		} else {
 			p.current += n
 			p.mutex.Unlock()
-			//fmt.Printf("request %d bytes, current total requested %d\n", n, p.current)
+			fmt.Printf("request %d bytes, current total requested %d\n", n, p.current)
 			break
 		}
 	}
@@ -58,7 +59,7 @@ func (p *MemoryPool) Return(n int64) {
 		p.current = 0
 	}
 	p.cond.Broadcast()
-	//fmt.Printf("return %d bytes, current total requested %d\n", n, p.current)
+	fmt.Printf("return %d bytes, current total requested %d\n", n, p.current)
 }
 
 func (p *MemoryPool) gracefulReturn() {
