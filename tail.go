@@ -485,7 +485,7 @@ func (tail *Tail) finishDelete() error {
 }
 
 func (tail *Tail) openReader() {
-	tail.reader = NewReaderSize(tail.file, 40)
+	tail.reader = NewReader(tail.file)
 	if tail.MaxLineSize > 0 {
 		tail.reader.SetMaxLineSize(tail.MaxLineSize + 2)
 	}
