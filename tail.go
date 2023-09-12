@@ -279,12 +279,12 @@ func (tail *Tail) reopen(truncated bool) error {
 
 func (tail *Tail) readLine() (string, error) {
 	tail.lk.Lock()
-	//line, err := tail.reader.ReadString('\n')
-	line := ""
-	lineBytes, err := tail.reader.ReadSlice('\n')
-	if len(lineBytes) > 0 {
-		line = string(lineBytes)
-	}
+	line, err := tail.reader.ReadString('\n')
+	//line := ""
+	//lineBytes, err := tail.reader.ReadSlice('\n')
+	//if len(lineBytes) > 0 {
+	//	line = string(lineBytes)
+	//}
 	tail.lk.Unlock()
 	if err != nil && err != ErrBufferFull {
 		// Note ReadString "returns the data read before the error" in
@@ -485,12 +485,16 @@ func (tail *Tail) finishDelete() error {
 }
 
 func (tail *Tail) openReader() {
+	tail.reader = NewReaderSize(tail.file, 40)
 	if tail.MaxLineSize > 0 {
-		// add 2 to account for newline characters
-		tail.reader = NewReaderSize(tail.file, tail.MaxLineSize+2)
-	} else {
-		tail.reader = NewReader(tail.file)
+		tail.reader.SetMaxLineSize(tail.MaxLineSize + 2)
 	}
+	//if tail.MaxLineSize > 0 {
+	//	// add 2 to account for newline characters
+	//	tail.reader = NewReaderSize(tail.file, tail.MaxLineSize+2)
+	//} else {
+	//	tail.reader = NewReader(tail.file)
+	//}
 	if tail.Config.MemPool != nil {
 		tail.reader.SetMemLimitPool(tail.Config.MemPool, tail.Config.AutoReturn)
 	}

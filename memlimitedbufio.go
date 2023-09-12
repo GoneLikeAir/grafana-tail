@@ -41,6 +41,7 @@ type Reader struct {
 	memPool        Pool
 	totalRequested int64
 	autoReturn     bool
+	maxLineSize    int
 }
 
 const minReadBufferSize = 16
@@ -59,6 +60,9 @@ func NewReaderSize(rd io.Reader, size int) *Reader {
 		size = minReadBufferSize
 	}
 	r := new(Reader)
+	if r.memPool != nil {
+		r.memPool.Request(int64(size))
+	}
 	r.reset(make([]byte, size), rd)
 	return r
 }
@@ -73,6 +77,10 @@ func (b *Reader) SetMemLimitPool(pool Pool, autoReturn bool) {
 	b.autoReturn = autoReturn
 }
 
+func (b *Reader) SetMaxLineSize(size int) {
+	b.maxLineSize = size
+}
+
 // Size returns the size of the underlying buffer in bytes.
 func (b *Reader) Size() int { return len(b.buf) }
 
@@ -85,6 +93,7 @@ func (b *Reader) Reset(r io.Reader) {
 func (b *Reader) reset(buf []byte, r io.Reader) {
 	pool := b.memPool
 	autoReturn := b.autoReturn
+	size := b.maxLineSize
 	*b = Reader{
 		buf:          buf,
 		rd:           r,
@@ -92,6 +101,7 @@ func (b *Reader) reset(buf []byte, r io.Reader) {
 		lastRuneSize: -1,
 		memPool:      pool,
 		autoReturn:   autoReturn,
+		maxLineSize:  size,
 	}
 }
 
@@ -112,29 +122,29 @@ func (b *Reader) fill() {
 
 	// Read new data: try a limited number of times.
 	for i := maxConsecutiveEmptyReads; i > 0; i-- {
-		if b.memPool != nil {
-			b.memPool.Request(int64(cap(b.buf)))
-		}
+		//if b.memPool != nil {
+		//	b.memPool.Request(int64(cap(b.buf)))
+		//}
 		n, err := b.rd.Read(b.buf[b.w:])
 		if n < 0 {
-			if b.memPool != nil {
-				b.memPool.Return(int64(cap(b.buf)))
-			}
+			//if b.memPool != nil {
+			//	b.memPool.Return(int64(cap(b.buf)))
+			//}
 			panic(errNegativeRead)
 		}
 		b.w += n
 		if err != nil {
 			b.err = err
-			if b.memPool != nil {
-				b.memPool.Return(int64(cap(b.buf)))
-			}
+			//if b.memPool != nil {
+			//	b.memPool.Return(int64(cap(b.buf)))
+			//}
 			return
 		}
 		if n > 0 {
-			if b.memPool != nil {
-				b.memPool.Return(int64(cap(b.buf) - n))
-				atomic.AddInt64(&b.totalRequested, int64(n))
-			}
+			//if b.memPool != nil {
+			//	b.memPool.Return(int64(cap(b.buf) - n))
+			//	atomic.AddInt64(&b.totalRequested, int64(n))
+			//}
 			return
 		}
 	}
@@ -383,11 +393,11 @@ func (b *Reader) readSlice(delim byte) (line []byte, err error) {
 
 		// Pending error?
 		if b.err != nil {
-			if b.memPool != nil {
-				n := int64(len(b.buf[b.r:b.w]))
-				b.memPool.Request(n)
-				atomic.AddInt64(&b.totalRequested, n)
-			}
+			//if b.memPool != nil {
+			//	n := int64(len(b.buf[b.r:b.w]))
+			//	b.memPool.Request(n)
+			//	atomic.AddInt64(&b.totalRequested, n)
+			//}
 			line = b.buf[b.r:b.w]
 			b.r = b.w
 			err = b.readErr()
@@ -397,11 +407,11 @@ func (b *Reader) readSlice(delim byte) (line []byte, err error) {
 		// Buffer full?
 		if b.Buffered() >= len(b.buf) {
 			b.r = b.w
-			if b.memPool != nil {
-				n := int64(len(b.buf))
-				b.memPool.Request(n)
-				atomic.AddInt64(&b.totalRequested, n)
-			}
+			//if b.memPool != nil {
+			//	n := int64(len(b.buf))
+			//	b.memPool.Request(n)
+			//	atomic.AddInt64(&b.totalRequested, n)
+			//}
 			line = b.buf
 			err = ErrBufferFull
 			break
@@ -491,6 +501,15 @@ func (b *Reader) collectFragments(delim byte) (fullBuffers [][]byte, finalFragme
 	for {
 		var e error
 		frag, e = b.readSlice(delim)
+		if len(frag) > 0 {
+			if b.memPool != nil {
+				b.memPool.Request(int64(len(frag)))
+				atomic.AddInt64(&b.totalRequested, int64(len(frag)))
+			}
+			if totalLen+len(frag) >= b.maxLineSize {
+				break
+			}
+		}
 		if e == nil { // got final fragment
 			break
 		}

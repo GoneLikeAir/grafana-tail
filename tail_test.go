@@ -308,11 +308,12 @@ func TestMemLimiting(t *testing.T) {
 }
 
 func TestContinuingTailing(t *testing.T) {
-	pool := NewMemoryPool(1000)
+	pool := NewMemoryPool(10000)
 	config := Config{
 		Follow:      true,
 		RateLimiter: ratelimiter.NewLeakyBucket(2, time.Second),
 		MemPool:     pool,
+		MaxLineSize: 50,
 	}
 	tail, _ := TailFile("/Users/gone/work/code/grafana-tail/text.txt", config)
 	fmt.Printf("%v\n", tail)
