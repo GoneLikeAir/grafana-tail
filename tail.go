@@ -301,7 +301,11 @@ func (tail *Tail) readLine() (string, error) {
 func (tail *Tail) tailFileSync() {
 	defer tail.Done()
 	defer tail.close()
-	defer tail.MemPool.Return(int64(tail.MaxLineSize))
+	defer func() {
+		if tail.MemPool != nil {
+			tail.MemPool.Return(int64(tail.MaxLineSize))
+		}
+	}()
 
 	if !tail.MustExist {
 		// deferred first open, not technically truncated but we don't need to check for changed files
@@ -343,7 +347,11 @@ func (tail *Tail) tailFileSync() {
 		f := func() bool {
 			// do not seek in named pipes
 			line, err := tail.readLine()
-			defer tail.MemPool.Return(int64(len(line) + 1))
+			defer func() {
+				if tail.MemPool != nil {
+					tail.MemPool.Return(int64(len(line) + 1))
+				}
+			}()
 
 			// Process `line` even if err is EOF.
 			if err == nil {
@@ -545,6 +553,8 @@ func (tail *Tail) sendLine(line string) bool {
 // meant to be invoked from a process's exit handler. Linux kernel may not
 // automatically remove inotify watches after the process exits.
 func (tail *Tail) Cleanup() {
-	tail.MemPool.Return(int64(tail.MaxLineSize))
+	if tail.MemPool != nil {
+		tail.MemPool.Return(int64(tail.MaxLineSize))
+	}
 	watch.Cleanup(tail.Filename)
 }
